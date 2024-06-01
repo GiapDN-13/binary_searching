@@ -1,5 +1,6 @@
 import pandas as pd
 import unicodedata
+import json
 
 
 class BinaryTree:
@@ -116,15 +117,16 @@ if __name__ == '__main__':
     data_dict = data_processor.get_data_dict()
 
     rollnumb = [int(numb[2:]) for numb in data_dict]
+    print(f"{rollnumb}", end=" ")
     tree = BinarySearchStudentTree.build_tree(rollnumb)
-    print(tree.search_node())
 
-    search_input = int(input('Enter a number to search: '))
+    search_input = int(input('\nEnter a number to search: '))
     found, path = tree.search_value(search_input)
 
     if found:
         print("search ways:", " -> ".join(map(str, path)))
-        print("student data:", data_dict["DE" + str(search_input)])
+        json_convert = json.dumps(data_dict["DE" + str(search_input)], indent=4, ensure_ascii=False)
+        print(f"student data: \n {json_convert}")
     else:
         print("search ways:", " -> ".join(map(str, path)))
         print('Not found')
