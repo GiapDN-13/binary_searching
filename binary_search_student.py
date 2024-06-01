@@ -1,10 +1,8 @@
 import pandas as pd
 import unicodedata
 
-df = pd.read_csv("data.csv")
 
-
-class BinarySearchStudent():
+class BinaryTree:
     def __init__(self, data):
         self.data = data
         self.left = None
@@ -18,12 +16,12 @@ class BinarySearchStudent():
             if self.left:
                 self.left.add_node(data)
             else:
-                self.left = BinarySearchStudent(data)
+                self.left = BinaryTree(data)
         else:
             if self.right:
                 self.right.add_node(data)
             else:
-                self.right = BinarySearchStudent(data)
+                self.right = BinaryTree(data)
 
     def search_node(self):
         elements = []
@@ -37,68 +35,94 @@ class BinarySearchStudent():
         return elements
 
     def search_value(self, val):
+        path = []
+        found = self._search_value_helper(val, path)
+        return found, path
+
+    def _search_value_helper(self, val, path):
+        path.append(self.data)
         if self.data == val:
             return True
         elif val < self.data:
             if self.left:
-                return self.left.search_value(val)
+                return self.left._search_value_helper(val, path)
             else:
                 return False
         else:
             if self.right:
-                return self.right.search_value(val)
+                return self.right._search_value_helper(val, path)
             else:
                 return False
 
 
-def build_tree(elements):
-    root = BinarySearchStudent(elements[0])
+class BinarySearchStudentTree(BinaryTree):
+    def __init__(self, data):
+        super().__init__(data)
 
-    for numb in range(1, len(elements)):
-        root.add_node(elements[numb])
-
-    return root
-
-
-def remove_accents(input_str):
-    nfkd_str = unicodedata.normalize('NFKD', input_str)
-    return ''.join([c for c in nfkd_str if not unicodedata.combining(c)])
+    @classmethod
+    def build_tree(cls, elements):
+        root = cls(elements[0])
+        for numb in elements[1:]:
+            root.add_node(numb)
+        return root
 
 
-def build_member_code(row):
-    if pd.notnull(row['RollNumber']) and pd.notnull(row['Fullname']):
-        fullname = row['Fullname'].strip().split()
-        if len(fullname) >= 3:
-            lastname = fullname[0]
-            middlename = ' '.join(fullname[1:-1])
-            firstname = fullname[-1]
+class DataProcessor:
+    def __init__(self, file_path):
+        self.df = pd.read_csv(file_path)
+        self.data_dict = {}
 
-            row['LastName'] = lastname
-            row['MiddleName'] = middlename
-            row['FirstName'] = firstname
+    @staticmethod
+    def remove_accents(input_str):
+        nfkd_str = unicodedata.normalize('NFKD', input_str)
+        return ''.join([c for c in nfkd_str if not unicodedata.combining(c)])
 
-            middle_initials = ''.join([word[0] for word in middlename.split()])
-            member_code = f"{firstname}{lastname[0]}{middle_initials}{row['RollNumber']}"
-            return remove_accents(member_code)
-    return row['MemberCode']
+    def build_member_code(self, row):
+        if pd.notnull(row['RollNumber']) and pd.notnull(row['Fullname']):
+            fullname = row['Fullname'].strip().split()
+            if len(fullname) >= 3:
+                lastname = fullname[0]
+                middlename = ' '.join(fullname[1:-1])
+                firstname = fullname[-1]
 
+                row['LastName'] = lastname
+                row['MiddleName'] = middlename
+                row['FirstName'] = firstname
 
-df['MemberCode'] = df.apply(build_member_code, axis=1)
+                middle_initials = ''.join([word[0] for word in middlename.split()])
+                member_code = f"{firstname}{lastname[0]}{middle_initials}{row['RollNumber']}"
+                return DataProcessor.remove_accents(member_code)
+        return row['MemberCode']
 
-condition1 = df[['LastName', 'MiddleName', 'FirstName', 'RollNumber', 'Email']].notnull().all(axis=1)
-condition2 = df[['RollNumber', 'Fullname']].notnull().all(axis=1)
-final_condition = condition1 | condition2
-df_filtered = df[final_condition]
+    def process_data(self):
+        self.df['MemberCode'] = self.df.apply(self.build_member_code, axis=1)
 
-df.set_index('RollNumber', inplace=True)
-data_dict = df.to_dict(orient='index')
+        condition1 = self.df[['LastName', 'MiddleName', 'FirstName', 'RollNumber', 'Email']].notnull().all(axis=1)
+        condition2 = self.df[['RollNumber', 'Fullname']].notnull().all(axis=1)
+        final_condition = condition1 | condition2
+        df_filtered = self.df[final_condition]
+
+        df_filtered.set_index('RollNumber', inplace=True)
+        self.data_dict = df_filtered.to_dict(orient='index')
+
+    def get_data_dict(self):
+        return self.data_dict
+
 
 if __name__ == '__main__':
-    rollnumb = [(int(numb[2::1])) for numb in data_dict]
-    tree = build_tree(rollnumb)
+    data_processor = DataProcessor("data.csv")
+    data_processor.process_data()
+    data_dict = data_processor.get_data_dict()
+
+    rollnumb = [int(numb[2:]) for numb in data_dict]
+    tree = BinarySearchStudentTree.build_tree(rollnumb)
     print(tree.search_node())
+
     search_input = int(input('Enter a number to search: '))
-    if tree.search_value(search_input):
-        print(data_dict["DE"+ str(search_input)])
+    found, path = tree.search_value(search_input)
+    if found:
+        print("search ways:", " -> ".join(map(str, path)))
+        print("student data:", data_dict["DE" + str(search_input)])
     else:
+        print("search ways:", " -> ".join(map(str, path)))
         print('Not found')
